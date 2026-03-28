@@ -13,6 +13,10 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Tuple
 from datetime import datetime, timedelta
+import time
+import sys
+sys.path.insert(0, '/Users/lijian/.agents/skills')
+from tushare_utils.api_utils import APIRateLimiter, retry_on_rate_limit
 
 
 class ValuationFilter:
@@ -20,18 +24,28 @@ class ValuationFilter:
     
     def __init__(self, pro_api):
         self.pro = pro_api
+        self.limiter = APIRateLimiter(max_calls=300, period=60)  # 保守设置，每分钟300次
     
+    @retry_on_rate_limit(max_retries=3, sleep_time=10)
     def get_daily_basic(self, trade_date: str = None) -> pd.DataFrame:
         """
         获取每日基本面指标（包含估值数据）
         """
         if trade_date is None:
             # 获取最近交易日
-            trade_cal = self.pro.trade_cal(exchange='SSE', start_date='20250101', end_date='20251231')
+            @self.limiter.rate_limit
+            def get_trade_cal():
+                return self.pro.trade_cal(exchange='SSE', start_date='20250101', end_date='20251231')
+            
+            trade_cal = get_trade_cal()
             trade_cal = trade_cal[trade_cal['is_open'] == 1]
             trade_date = trade_cal['cal_date'].max()
         
-        df = self.pro.daily_basic(trade_date=trade_date)
+        @self.limiter.rate_limit
+        def fetch_data():
+            return self.pro.daily_basic(trade_date=trade_date)
+        
+        df = fetch_data()
         return df
     
     def filter_by_pe(self, df: pd.DataFrame, max_pe: float = 20, 
@@ -82,6 +96,7 @@ class ValuationFilter:
         
         return filtered
     
+    @retry_on_rate_limit(max_retries=3, sleep_time=10)
     def get_dividend_history(self, ts_code: str, years: int = 3) -> pd.DataFrame:
         """
         获取历史分红数据，验证分红持续性
@@ -90,12 +105,18 @@ class ValuationFilter:
             DataFrame with columns: end_date, cash_div, div_rate
         """
         try:
-            df = self.pro.dividend(ts_code=ts_code)
+            @self.limiter.rate_limit
+            def fetch():
+                return self.pro.dividend(ts_code=ts_code)
+            
+            df = fetch()
             if df is not None and len(df) > 0:
                 df = df.sort_values('end_date', ascending=False).head(years)
                 return df[['end_date', 'cash_div', 'div_rate', 'stk_div']]
-        except:
-            pass
+        except Exception as e:
+            if "每分钟最多访问" in str(e):
+                time.sleep(10)
+                return self.get_dividend_history(ts_code, years)
         return pd.DataFrame()
     
     def check_dividend_sustainability(self, ts_code: str) -> Dict:

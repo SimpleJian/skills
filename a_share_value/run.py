@@ -13,6 +13,7 @@ A股价值抄底选股策略 - 运行入口
 import os
 import sys
 import argparse
+import time
 from datetime import datetime
 
 
@@ -116,6 +117,10 @@ def main():
         return
     
     # 执行选股流程
+    print("\n注意：由于 Tushare API 频率限制，选股过程可能需要几分钟时间，请耐心等待...")
+    print("      如果遇到频率限制，程序会自动等待并重试。\n")
+    
+    start_time = datetime.now()
     selector = ValueSelector(pro)
     result = selector.select_stocks(
         max_pe=args.max_pe,
@@ -123,6 +128,8 @@ def main():
         min_dividend_yield=args.min_dividend,
         top_n=args.top_n
     )
+    elapsed = (datetime.now() - start_time).total_seconds()
+    print(f"\n总耗时: {elapsed:.1f} 秒")
     
     # 保存结果到文件
     if len(result['selected_stocks']) > 0:
