@@ -89,7 +89,7 @@
 
 #### 运行测试
 ```bash
-cd /Users/lijian/.agents/skills
+cd /path/to/skills
 
 # 运行所有测试
 python tests/run_tests.py

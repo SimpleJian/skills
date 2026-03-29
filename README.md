@@ -111,7 +111,7 @@ python3 futures_value/run.py
 ## 📁 目录结构
 
 ```
-/Users/lijian/.agents/skills/
+/path/to/skills/
 ├── a_share_trend/          # A股趋势跟踪策略
 │   ├── SKILL.md
 │   ├── run.py

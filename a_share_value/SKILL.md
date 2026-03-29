@@ -87,7 +87,7 @@ export TUSHARE_TOKEN=your_token_here
 ### 1. 执行完整选股流程
 
 ```bash
-cd /Users/lijian/.agents/skills/a_share_value
+cd /path/to/skills/a_share_value
 
 # 标准选股（保守型）
 python3 run.py

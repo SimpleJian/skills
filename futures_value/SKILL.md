@@ -86,7 +86,7 @@ export TUSHARE_TOKEN=your_token_here
 ### 1. 标准选股
 
 ```bash
-cd /Users/lijian/.agents/skills/futures_value
+cd /path/to/skills/futures_value
 
 # 标准运行
 python3 run.py

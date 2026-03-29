@@ -4,7 +4,7 @@
 测试包
 
 运行所有测试:
-    cd /Users/lijian/.agents/skills
+    cd /path/to/skills
     python -m pytest tests/ -v
 
 运行单个测试:

@@ -73,7 +73,7 @@ phase, confidence = analyzer.detect_economic_phase()
 ### 命令行运行
 
 ```bash
-cd /Users/lijian/.agents/skills/macro_analysis
+cd /path/to/skills/macro_analysis
 python run.py
 ```
 
@@ -81,7 +81,7 @@ python run.py
 
 ```python
 import sys
-sys.path.insert(0, '/Users/lijian/.agents/skills')
+sys.path.insert(0, '/path/to/skills')
 from macro_analysis.macro_analyzer import MacroAnalyzer
 import tushare as ts
 

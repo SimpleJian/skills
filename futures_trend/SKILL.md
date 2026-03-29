@@ -97,7 +97,7 @@ export TUSHARE_TOKEN=your_token_here
 ### 1. 标准选股（震荡市）
 
 ```bash
-cd /Users/lijian/.agents/skills/futures_trend
+cd /path/to/skills/futures_trend
 
 # 标准运行
 python3 run.py

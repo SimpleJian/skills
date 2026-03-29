@@ -36,7 +36,7 @@
 ### 命令行运行
 
 ```bash
-cd /Users/lijian/.agents/skills/portfolio_manager
+cd /path/to/skills/portfolio_manager
 python run.py --portfolio portfolio.json
 ```
 

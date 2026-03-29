@@ -149,7 +149,7 @@ export TUSHARE_TOKEN=your_token
 
 ```python
 import sys
-sys.path.insert(0, '/Users/lijian/.agents/skills')
+sys.path.insert(0, '/path/to/skills')
 
 import tushare as ts
 ts.set_token(os.getenv('TUSHARE_TOKEN'))

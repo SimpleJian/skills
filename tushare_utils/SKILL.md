@@ -42,7 +42,7 @@ export TUSHARE_TOKEN=your_token_here
 
 ```python
 import sys
-sys.path.insert(0, '/Users/lijian/.agents/skills')
+sys.path.insert(0, '/path/to/skills')
 from tushare_utils.api_utils import APIRateLimiter
 
 import tushare as ts
@@ -243,7 +243,7 @@ APICache(ttl=300)
 
 ```python
 import sys
-sys.path.insert(0, '/Users/lijian/.agents/skills')
+sys.path.insert(0, '/path/to/skills')
 from tushare_utils.api_utils import APIRateLimiter, batch_fetch_data
 import tushare as ts
 
