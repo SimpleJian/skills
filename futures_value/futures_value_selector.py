@@ -22,6 +22,16 @@ import numpy as np
 from typing import Dict
 from datetime import datetime
 
+import sys
+import os
+# 动态获取 skills 目录路径
+_current_file = os.path.abspath(__file__)
+_current_dir = os.path.dirname(_current_file)
+_skills_dir = os.path.dirname(_current_dir)
+sys.path.insert(0, _skills_dir)
+from tushare_utils.data_quality import create_futures_processor
+from tushare_utils.risk_tags import FuturesRiskAnalyzer, merge_issues_to_tags
+
 from technical_oversold import TechnicalOversold
 from fundamental_value import FundamentalValue
 from sentiment_verification import SentimentVerification
@@ -47,6 +57,9 @@ class FuturesValueSelector:
         self.sent = SentimentVerification(pro_api)
         self.scorer = FuturesValueScorer(pro_api)
         self.builder = PortfolioBuilder(total_capital)
+        self.data_processor = create_futures_processor(pro_api)
+        self.risk_analyzer = FuturesRiskAnalyzer(pro_api)
+        self.contract_risk_tags = {}
     
     def get_liquid_contracts(self, min_volume: int = 50000) -> pd.DataFrame:
         """
@@ -138,8 +151,30 @@ class FuturesValueSelector:
             # 使用基本面筛选结果继续
             df_sentiment = df_value
         
-        # 多因子综合评分
-        df_scored = self.scorer.rank_contracts(df_sentiment)
+        # 生成风险标签
+        print("\n生成风险标签...")
+        for idx, row in df_sentiment.iterrows():
+            ts_code = row.get('ts_code')
+            try:
+                # 获取价格数据
+                price_df = self.pro.fut_daily(ts_code=ts_code, limit=60)
+                
+                # 检查合约到期
+                days_to_expiry = 999
+                try:
+                    days_to_expiry, _ = self.data_processor.check_contract_expiry(ts_code)
+                except:
+                    pass
+                
+                # 风险分析
+                risk_generator = self.risk_analyzer.analyze_contract(ts_code, price_df, days_to_expiry)
+                risk_tags = risk_generator.get_tags_string()
+                self.contract_risk_tags[ts_code] = risk_tags
+            except:
+                self.contract_risk_tags[ts_code] = ""
+        
+        # 多因子综合评分（传入风险标签）
+        df_scored = self.scorer.rank_contracts(df_sentiment, self.contract_risk_tags)
         
         # 组合构建
         portfolio = self.builder.build_portfolio(df_scored)
@@ -171,7 +206,9 @@ class FuturesValueSelector:
             print(f"🔴 【核心池】{len(core_pool)}只 (评分≥80)")
             print("    建议: 优先配置，深度价值，仓位15-20%/只")
             print()
-            print(core_pool.head(10)[['ts_code', 'name', 'total_score', 'fund_score', 'tech_score']].to_string(index=False))
+            display_cols = ['ts_code', 'name', 'total_score', 'fund_score', 'tech_score', 'risk_tags']
+            available_cols = [c for c in display_cols if c in core_pool.columns]
+            print(core_pool.head(10)[available_cols].to_string(index=False))
             print()
         
         # 观察池

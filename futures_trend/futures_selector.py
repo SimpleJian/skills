@@ -20,6 +20,16 @@ import numpy as np
 from typing import Dict
 from datetime import datetime
 
+import sys
+import os
+# 动态获取 skills 目录路径
+_current_file = os.path.abspath(__file__)
+_current_dir = os.path.dirname(_current_file)
+_skills_dir = os.path.dirname(_current_dir)
+sys.path.insert(0, _skills_dir)
+from tushare_utils.data_quality import create_futures_processor
+from tushare_utils.risk_tags import FuturesRiskAnalyzer, merge_issues_to_tags
+
 from liquidity_filter import LiquidityFilter
 from trend_direction import TrendDirection
 from trend_strength import TrendStrength
@@ -44,6 +54,9 @@ class FuturesSelector:
         self.trend_dir = TrendDirection(pro_api)
         self.trend_strength = TrendStrength(pro_api)
         self.portfolio = PortfolioBuilder(total_capital)
+        self.data_processor = create_futures_processor(pro_api)
+        self.risk_analyzer = FuturesRiskAnalyzer(pro_api)
+        self.contract_risk_tags = {}
     
     def select_contracts(self, market_env: str = '震荡', 
                         adx_threshold: float = 25) -> Dict:
@@ -102,6 +115,36 @@ class FuturesSelector:
             long_scores = []
             for idx, row in df_long.iterrows():
                 ts_code = row['ts_code']
+                
+                # 数据质量检查 + 风险标签
+                price_df = None
+                try:
+                    price_df = self.pro.fut_daily(ts_code=ts_code, limit=60)
+                except:
+                    pass
+                
+                # 检查合约到期
+                days_to_expiry = 999
+                try:
+                    _, expiry_tag = self.data_processor.check_contract_expiry(ts_code)
+                    if expiry_tag:
+                        # 解析天数
+                        import re
+                        match = re.search(r'(\d+)', expiry_tag)
+                        if match:
+                            days_to_expiry = int(match.group(1))
+                except:
+                    pass
+                
+                # 风险分析
+                risk_generator = self.risk_analyzer.analyze_contract(ts_code, price_df, days_to_expiry)
+                risk_tags = risk_generator.get_tags_string()
+                self.contract_risk_tags[ts_code] = risk_tags
+                
+                # 若即将到期，跳过
+                if days_to_expiry < 7:
+                    continue
+                
                 result = self.trend_strength.calculate_comprehensive_score(ts_code, '多头')
                 
                 if result['total_score'] > 0:
@@ -111,7 +154,8 @@ class FuturesSelector:
                         'sector': self.portfolio.get_commodity_sector(ts_code),
                         'total_score': result['total_score'],
                         'adx': row['adx'],
-                        'direction': '多头'
+                        'direction': '多头',
+                        'risk_tags': risk_tags
                     })
             
             df_long_scored = pd.DataFrame(long_scores)
@@ -128,6 +172,21 @@ class FuturesSelector:
             short_scores = []
             for idx, row in df_short.iterrows():
                 ts_code = row['ts_code']
+                
+                # 数据质量检查 + 风险标签（复用多头的）
+                risk_tags = self.contract_risk_tags.get(ts_code, "")
+                
+                # 检查合约到期
+                days_to_expiry = 999
+                try:
+                    days_to_expiry, _ = self.data_processor.check_contract_expiry(ts_code)
+                except:
+                    pass
+                
+                # 若即将到期，跳过
+                if days_to_expiry < 7:
+                    continue
+                
                 result = self.trend_strength.calculate_comprehensive_score(ts_code, '空头')
                 
                 if result['total_score'] > 0:
@@ -137,7 +196,8 @@ class FuturesSelector:
                         'sector': self.portfolio.get_commodity_sector(ts_code),
                         'total_score': result['total_score'],
                         'adx': row['adx'],
-                        'direction': '空头'
+                        'direction': '空头',
+                        'risk_tags': risk_tags
                     })
             
             df_short_scored = pd.DataFrame(short_scores)

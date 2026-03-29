@@ -136,9 +136,10 @@ class FuturesValueScorer:
                 'error': str(e)
             }
     
-    def rank_contracts(self, df_candidates: pd.DataFrame) -> pd.DataFrame:
+    def rank_contracts(self, df_candidates: pd.DataFrame, 
+                       risk_tags_map: dict = None) -> pd.DataFrame:
         """
-        对候选合约进行综合评分排名
+        对候选合约进行综合评分排名（含风险标签）
         """
         print()
         print("=" * 70)
@@ -154,6 +155,9 @@ class FuturesValueScorer:
             
             score_result = self.calculate_comprehensive_score(ts_code)
             
+            # 获取风险标签
+            risk_tags = risk_tags_map.get(ts_code, "") if risk_tags_map else ""
+            
             results.append({
                 'ts_code': ts_code,
                 'name': name,
@@ -162,7 +166,8 @@ class FuturesValueScorer:
                 'tech_score': score_result['tech_score'],
                 'fund_score': score_result['fund_score'],
                 'sent_score': score_result['sent_score'],
-                'suggestion': score_result['suggestion']
+                'suggestion': score_result['suggestion'],
+                'risk_tags': risk_tags
             })
         
         df = pd.DataFrame(results)

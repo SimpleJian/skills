@@ -81,7 +81,7 @@ class PortfolioBuilder:
         sector2 = self.get_commodity_sector(code2)
         
         # 产业链关系
-       产业链_pairs = [
+        industry_chain_pairs = [
             ('JM', 'J'), ('J', 'RB'), ('J', 'HC'),  # 焦煤-焦炭-钢材
             ('I', 'RB'), ('I', 'HC'),  # 铁矿石-钢材
             ('SC', 'TA'), ('SC', 'FU'), ('SC', 'BU'),  # 原油-化工/能源
@@ -92,7 +92,7 @@ class PortfolioBuilder:
         pair1 = (code1.split('.')[0][:2], code2.split('.')[0][:2])
         pair2 = (code2.split('.')[0][:2], code1.split('.')[0][:2])
         
-        if pair1 in 产业链_pairs or pair2 in 产业链_pairs:
+        if pair1 in industry_chain_pairs or pair2 in industry_chain_pairs:
             return 0.8  # 高度相关
         
         # 同板块
@@ -290,14 +290,18 @@ class PortfolioBuilder:
         core_long = portfolio['core_long']
         if len(core_long) > 0:
             print(f"【核心多头】{len(core_long)}只 - 建议仓位15-20万/只")
-            print(core_long[['ts_code', 'name', 'adx', 'trend_score']].to_string(index=False))
+            display_cols = ['ts_code', 'name', 'adx', 'trend_score', 'risk_tags']
+            available_cols = [c for c in display_cols if c in core_long.columns]
+            print(core_long[available_cols].to_string(index=False))
             print()
         
         # 核心空头
         core_short = portfolio['core_short']
         if len(core_short) > 0:
             print(f"【核心空头】{len(core_short)}只 - 建议仓位15-20万/只")
-            print(core_short[['ts_code', 'name', 'adx', 'trend_score']].to_string(index=False))
+            display_cols = ['ts_code', 'name', 'adx', 'trend_score', 'risk_tags']
+            available_cols = [c for c in display_cols if c in core_short.columns]
+            print(core_short[available_cols].to_string(index=False))
             print()
         
         # 备选品种

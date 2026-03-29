@@ -21,6 +21,8 @@ _current_dir = os.path.dirname(_current_file)
 _skills_dir = os.path.dirname(_current_dir)
 sys.path.insert(0, _skills_dir)
 from tushare_utils.api_utils import APIRateLimiter
+from tushare_utils.data_quality import DataPreprocessor, create_default_processor
+from tushare_utils.risk_tags import RiskTagGenerator, merge_issues_to_tags
 
 from market_concentration import MarketConcentration
 from technical_indicators import TechnicalIndicators
@@ -51,6 +53,9 @@ class StockSelector:
         self.fund_filter = FundamentalFilter(pro_api)
         self.fund_analysis = FundAnalysis(pro_api)
         self.scorer = MultiFactorScorer(pro_api)
+        self.data_processor = create_default_processor(pro_api)
+        # 存储每只股票的risk_tags
+        self.stock_risk_tags = {}
     
     def step1_preliminary_filter(self, min_amount: float = 1.0) -> List[str]:
         """
@@ -110,7 +115,13 @@ class StockSelector:
                 hist_df = self.pro.daily(ts_code=ts_code, 
                                         start_date=start_dt.strftime('%Y%m%d'))
                 
+                # 数据质量检查
+                hist_df, quality_issues = self.data_processor.process_stock_data(hist_df, ts_code)
+                
                 if hist_df is None or len(hist_df) < 20:
+                    # 记录数据质量问题
+                    if quality_issues:
+                        self.stock_risk_tags[ts_code] = merge_issues_to_tags(quality_issues)
                     continue
                 
                 hist_df = hist_df.sort_values('trade_date')
@@ -317,6 +328,12 @@ class StockSelector:
         # 第三步：综合排序
         ranked_df = self.step3_ranking(precise_list, industry_concentration)
         
+        # 添加风险标签到结果
+        if len(ranked_df) > 0 and 'ts_code' in ranked_df.columns:
+            ranked_df['risk_tags'] = ranked_df['ts_code'].apply(
+                lambda x: self.stock_risk_tags.get(x, "")
+            )
+        
         # 4. 仓位配置建议
         if len(ranked_df) > 0:
             print("\n" + "=" * 60)
@@ -377,5 +394,7 @@ if __name__ == '__main__':
     
     print("\n【最终选股结果】")
     if len(result['selected_stocks']) > 0:
-        print(result['selected_stocks'][['ts_code', 'name', 'industry', 'total_score', 
-                                        'trend_score', 'fund_score']].to_string(index=False))
+        display_cols = ['ts_code', 'name', 'industry', 'total_score', 'risk_tags']
+        # 过滤存在的列
+        available_cols = [c for c in display_cols if c in result['selected_stocks'].columns]
+        print(result['selected_stocks'][available_cols].to_string(index=False))

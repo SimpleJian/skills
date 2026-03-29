@@ -20,6 +20,16 @@ import numpy as np
 from typing import List, Dict
 from datetime import datetime
 
+import sys
+import os
+# 动态获取 skills 目录路径
+_current_file = os.path.abspath(__file__)
+_current_dir = os.path.dirname(_current_file)
+_skills_dir = os.path.dirname(_current_dir)
+sys.path.insert(0, _skills_dir)
+from tushare_utils.data_quality import DataPreprocessor, create_default_processor
+from tushare_utils.risk_tags import RiskTagGenerator, merge_issues_to_tags, AShareRiskAnalyzer
+
 from valuation_filter import ValuationFilter
 from quality_filter import QualityFilter
 from growth_analyzer import GrowthAnalyzer
@@ -43,6 +53,9 @@ class ValueSelector:
         self.quality = QualityFilter(pro_api)
         self.growth = GrowthAnalyzer(pro_api)
         self.scorer = ValueScorer(pro_api)
+        self.data_processor = create_default_processor(pro_api)
+        self.risk_analyzer = AShareRiskAnalyzer(pro_api)
+        self.stock_risk_tags = {}
     
     def step1_valuation_filter(self, max_pe: float = 15, max_pb: float = 1.5,
                                min_dividend_yield: float = 3.0) -> pd.DataFrame:
@@ -151,7 +164,7 @@ class ValueSelector:
     
     def step4_comprehensive_scoring(self, stock_list: List[str]) -> pd.DataFrame:
         """
-        多因子综合评分
+        多因子综合评分（含风险标签）
         """
         print()
         print("=" * 70)
@@ -175,6 +188,29 @@ class ValueSelector:
                     name = ''
                     industry = ''
                 
+                # 风险标签分析
+                # 1. 价格数据风险
+                price_df = None
+                try:
+                    price_df = self.pro.daily(ts_code=ts_code, limit=60)
+                    if price_df is not None and not price_df.empty:
+                        price_df, price_issues = self.data_processor.process_stock_data(price_df, ts_code)
+                except:
+                    price_issues = ['数据获取失败']
+                
+                # 2. 财务风险（使用quality_filter的结果）
+                financial_issues = []
+                quality_result = score_result.get('quality', {})
+                if quality_result.get('roe', {}).get('avg_roe', 0) < 5:
+                    financial_issues.append('盈利波动大')
+                
+                # 3. 综合风险标签
+                all_issues = price_issues if 'price_issues' in dir() else []
+                all_issues.extend(financial_issues)
+                
+                risk_tags = merge_issues_to_tags(all_issues)
+                self.stock_risk_tags[ts_code] = risk_tags
+                
                 results.append({
                     'ts_code': ts_code,
                     'name': name,
@@ -189,7 +225,8 @@ class ValueSelector:
                     'pb': score_result['valuation'].get('pb', 0),
                     'dv_ratio': score_result['valuation'].get('dv_ratio', 0),
                     'roe': score_result['quality'].get('roe', {}).get('avg_roe', 0),
-                    'suggestion': score_result['suggestion']
+                    'suggestion': score_result['suggestion'],
+                    'risk_tags': risk_tags
                 })
             except:
                 continue
@@ -266,7 +303,9 @@ class ValueSelector:
             if len(core_pool) > 0:
                 print(f"\n【核心池】{len(core_pool)}只 (评分≥80)")
                 print("  建议: 优先配置，深度研究后可集中持仓")
-                print(core_pool[['ts_code', 'name', 'industry', 'total_score', 'pe', 'pb', 'dv_ratio']].to_string(index=False))
+                display_cols = ['ts_code', 'name', 'industry', 'total_score', 'pe', 'pb', 'dv_ratio', 'risk_tags']
+                available_cols = [c for c in display_cols if c in core_pool.columns]
+                print(core_pool[available_cols].to_string(index=False))
             
             # 观察池
             watch_pool = ranked_df[ranked_df['level'] == '观察池']
