@@ -19,6 +19,15 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List
 from datetime import datetime
+import time
+import sys
+import os
+# 动态获取 skills 目录路径
+_current_file = os.path.abspath(__file__)
+_current_dir = os.path.dirname(_current_file)
+_skills_dir = os.path.dirname(_current_dir)
+sys.path.insert(0, _skills_dir)
+from tushare_utils.api_utils import APIRateLimiter
 
 from technical_oversold import TechnicalOversold
 from fundamental_value import FundamentalValue
@@ -33,6 +42,7 @@ class FuturesValueScorer:
         self.tech = TechnicalOversold(pro_api)
         self.fund = FundamentalValue(pro_api)
         self.sent = SentimentVerification(pro_api)
+        self.limiter = APIRateLimiter(max_calls=300, period=60)
     
     def calculate_comprehensive_score(self, ts_code: str) -> Dict:
         """

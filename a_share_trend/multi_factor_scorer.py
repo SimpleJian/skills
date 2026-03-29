@@ -14,6 +14,15 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List
 from datetime import datetime
+import time
+import sys
+import os
+# 动态获取 skills 目录路径
+_current_file = os.path.abspath(__file__)
+_current_dir = os.path.dirname(_current_file)
+_skills_dir = os.path.dirname(_current_dir)
+sys.path.insert(0, _skills_dir)
+from tushare_utils.api_utils import APIRateLimiter
 
 from technical_indicators import TechnicalIndicators
 from fundamental_filter import FundAnalysis
@@ -26,6 +35,7 @@ class MultiFactorScorer:
         self.pro = pro_api
         self.tech = TechnicalIndicators(pro_api)
         self.fund = FundAnalysis(pro_api)
+        self.limiter = APIRateLimiter(max_calls=300, period=60)
     
     def calculate_trend_score(self, ts_code: str) -> Dict:
         """

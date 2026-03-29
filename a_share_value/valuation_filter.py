@@ -15,7 +15,12 @@ from typing import Dict, List, Tuple
 from datetime import datetime, timedelta
 import time
 import sys
-sys.path.insert(0, '/Users/lijian/.agents/skills')
+import os
+# 动态获取 skills 目录路径
+_current_file = os.path.abspath(__file__)
+_current_dir = os.path.dirname(_current_file)
+_skills_dir = os.path.dirname(_current_dir)
+sys.path.insert(0, _skills_dir)
 from tushare_utils.api_utils import APIRateLimiter, retry_on_rate_limit
 
 

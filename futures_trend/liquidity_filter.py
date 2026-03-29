@@ -14,6 +14,15 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List
 from datetime import datetime, timedelta
+import time
+import sys
+import os
+# 动态获取 skills 目录路径
+_current_file = os.path.abspath(__file__)
+_current_dir = os.path.dirname(_current_file)
+_skills_dir = os.path.dirname(_current_dir)
+sys.path.insert(0, _skills_dir)
+from tushare_utils.api_utils import APIRateLimiter
 
 
 class LiquidityFilter:
@@ -23,6 +32,7 @@ class LiquidityFilter:
         self.pro = pro_api
         self.min_volume = 100000  # 10万手
         self.min_oi = 50000       # 5万手
+        self.limiter = APIRateLimiter(max_calls=300, period=60)
     
     def get_fut_basic(self) -> pd.DataFrame:
         """
