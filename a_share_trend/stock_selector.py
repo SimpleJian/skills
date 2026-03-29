@@ -57,7 +57,7 @@ class StockSelector:
         # 存储每只股票的risk_tags
         self.stock_risk_tags = {}
     
-    def step1_preliminary_filter(self, min_amount: float = 1.0) -> List[str]:
+    def step1_preliminary_filter(self, min_amount: float = 1.0, max_stocks: int = None) -> List[str]:
         """
         第一步：初步筛选（安全关 + 动量关）
         
@@ -70,6 +70,7 @@ class StockSelector:
         
         Args:
             min_amount: 最小日均成交额（亿元）
+            max_stocks: 最大分析股票数量（默认None表示分析全部，可根据API限制设置）
             
         Returns:
             List[str]: 初步筛选后的股票列表
@@ -108,7 +109,12 @@ class StockSelector:
         df_daily = df_daily[df_daily['ts_code'].isin(safe_stocks)]
         
         # 计算20日新高
-        for ts_code in df_daily['ts_code'].unique()[:500]:  # 限制数量避免超时
+        ts_codes = df_daily['ts_code'].unique()
+        if max_stocks is not None:
+            ts_codes = ts_codes[:max_stocks]
+            print(f"限制分析股票数量: {max_stocks} 只")
+        
+        for ts_code in ts_codes:
             try:
                 # 获取历史数据
                 start_dt = datetime.strptime(latest_date, '%Y%m%d') - timedelta(days=60)
@@ -170,7 +176,8 @@ class StockSelector:
         return selected
     
     def step2_precise_filter(self, stock_list: List[str], 
-                            industry_concentration: pd.DataFrame = None) -> List[str]:
+                            industry_concentration: pd.DataFrame = None,
+                            max_stocks: int = None) -> List[str]:
         """
         第二步：精确筛选（资金关 + 题材关 + 技术关）
         
@@ -182,6 +189,7 @@ class StockSelector:
         Args:
             stock_list: 第一步筛选后的股票列表
             industry_concentration: 行业集中度数据
+            max_stocks: 最大分析股票数量（默认None表示分析全部）
             
         Returns:
             List[str]: 精确筛选后的股票列表
@@ -192,7 +200,12 @@ class StockSelector:
         
         filtered_stocks = []
         
-        for ts_code in stock_list[:100]:  # 限制数量
+        # 限制分析数量
+        if max_stocks is not None:
+            stock_list = stock_list[:max_stocks]
+            print(f"限制分析股票数量: {max_stocks} 只")
+        
+        for ts_code in stock_list:
             try:
                 # 技术关检测
                 tech_result = self.tech.get_technical_score(ts_code)
@@ -276,13 +289,14 @@ class StockSelector:
         
         return ranked_df
     
-    def select_stocks(self, top_n: int = 50, min_amount: float = 1.0) -> Dict:
+    def select_stocks(self, top_n: int = 50, min_amount: float = 1.0, max_stocks: int = None) -> Dict:
         """
         执行完整选股流程
         
         Args:
             top_n: 最终选出股票数量
             min_amount: 最小日均成交额（亿元）
+            max_stocks: 最大分析股票数量（默认None表示分析全部）
             
         Returns:
             Dict: 选股结果
@@ -307,7 +321,7 @@ class StockSelector:
         
         # 3. 三步选股
         # 第一步：初步筛选
-        preliminary_list = self.step1_preliminary_filter(min_amount)
+        preliminary_list = self.step1_preliminary_filter(min_amount, max_stocks)
         
         if len(preliminary_list) == 0:
             print("\n警告：初步筛选无结果，请检查市场状态")
@@ -318,7 +332,7 @@ class StockSelector:
             }
         
         # 第二步：精确筛选
-        precise_list = self.step2_precise_filter(preliminary_list, industry_concentration)
+        precise_list = self.step2_precise_filter(preliminary_list, industry_concentration, max_stocks)
         
         if len(precise_list) == 0:
             print("\n警告：精确筛选无结果，放宽条件重试...")

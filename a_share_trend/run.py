@@ -45,6 +45,7 @@ def main():
     parser = argparse.ArgumentParser(description='A股趋势跟踪主线选股策略')
     parser.add_argument('-n', '--top-n', type=int, default=30, help='选出股票数量 (默认: 30)')
     parser.add_argument('-a', '--min-amount', type=float, default=1.0, help='最小日均成交额(亿元) (默认: 1.0)')
+    parser.add_argument('--max-stocks', type=int, default=None, help='最大分析股票数量 (默认: 分析全部)')
     parser.add_argument('--step', type=int, choices=[1, 2, 3], help='只执行指定步骤')
     parser.add_argument('--industry', action='store_true', help='只显示行业集中度')
     parser.add_argument('--code', type=str, help='分析指定股票代码')
@@ -69,7 +70,7 @@ def main():
     print("A股趋势跟踪主线选股策略")
     print("=" * 80)
     print(f"运行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"参数: top_n={args.top_n}, min_amount={args.min_amount}亿")
+    print(f"参数: top_n={args.top_n}, min_amount={args.min_amount}亿, max_stocks={args.max_stocks or '全部'}")
     print("=" * 80)
     
     # 只显示行业集中度
@@ -106,7 +107,7 @@ def main():
     
     # 执行选股流程
     selector = StockSelector(pro)
-    result = selector.select_stocks(top_n=args.top_n, min_amount=args.min_amount)
+    result = selector.select_stocks(top_n=args.top_n, min_amount=args.min_amount, max_stocks=args.max_stocks)
     
     # 保存结果到文件
     if len(result['selected_stocks']) > 0:
