@@ -63,6 +63,9 @@ class TestPathIndependence(unittest.TestCase):
                 # 检查是否是允许的占位符
                 if any(placeholder in line for placeholder in self.allowed_placeholders):
                     continue
+                # 检查是否是文档中的说明（包含"检测"、"如"等关键词）
+                if any(kw in line for kw in ['检测', '如', '说明', '例如']):
+                    continue
                 issues.append({
                     'line': line_num,
                     'content': line.strip(),

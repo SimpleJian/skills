@@ -85,7 +85,7 @@ tests/
 ├── test_data_quality.py        # 数据质量模块测试 (14个)
 ├── test_risk_tags.py           # 风险标签模块测试 (14个)
 ├── test_financial_cache.py     # 财务缓存模块测试 (11个)
-├── test_path_independence.py   # 路径独立性检查 (17个)
+├── test_path_independence.py   # 路径独立性检查 + SKILL.md 存在性检查 (18个)
 ├── test_macro_analysis.py      # 宏观分析技能测试 (12个)
 ├── test_portfolio_manager.py   # 组合管理技能测试 (4个)
 ├── test_risk_manager.py        # 风险管理技能测试 (6个)
@@ -93,7 +93,7 @@ tests/
 ├── test_industry_research.py   # 行业研究技能测试 (3个)
 └── test_fund_analyzer.py       # 基金分析技能测试 (3个)
 
-总计: 10个测试文件，87个测试用例
+总计: 10个测试文件，88个测试用例
 ```
 
 ## 添加新测试
@@ -136,23 +136,29 @@ if __name__ == '__main__':
     unittest.main()
 ```
 
-## 路径独立性检查
+## 路径独立性与文档完整性检查
 
-所有 skill 模块必须避免硬编码的绝对路径。运行以下测试确保路径独立性：
+所有 skill 模块必须避免硬编码的绝对路径，且必须有对应的文档。
 
 ```bash
-# 检查所有技能模块是否包含硬编码路径
+# 检查所有技能模块
 python -m unittest tests.test_path_independence -v
 ```
 
-### 检测规则
+### 检测内容
 
-测试会检查以下硬编码路径模式：
-- `/Users/username/` - macOS 用户目录
-- `/home/username/` - Linux 用户目录  
-- `/root/` - root 目录
-- `C:\Users\username\` - Windows 用户目录
-- `D:\` - Windows 盘符
+#### 1. SKILL.md 存在性检查
+
+每个技能目录必须包含 `SKILL.md` 文件：
+
+```bash
+# 检查所有技能是否有文档
+python -m unittest tests.test_path_independence.TestPathIndependence.test_all_skills_have_md_file
+```
+
+#### 2. 硬编码路径检查
+
+测试会检查是否包含特定用户名（如 `lijian`）的硬编码路径。
 
 ### 正确的动态路径获取方式
 
